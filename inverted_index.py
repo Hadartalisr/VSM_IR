@@ -2,8 +2,9 @@ import math
 import os
 import re
 import xml.etree.ElementTree as ET
-
+from nltk.stem import PorterStemmer
 import stop_words
+
 
 def build(corpus_path):
     H = {}
@@ -76,11 +77,13 @@ def add_tokens_to_vector(v, tokens):
 
 
 def get_tokens(sentence):
+    ps = PorterStemmer()
     sentence = sentence.lower()
     sentence = re.sub(r'[^\w\s]', '', sentence)
     sentence = re.sub(r'[\d]', '', sentence)
     word_tokens = sentence.split()
     filtered_sentence = [w for w in word_tokens if not w.lower() in stop_words.STOP_WORDS]
+    filtered_sentence = [ps.stem(w) for w in filtered_sentence]
     return filtered_sentence
 
 
@@ -93,12 +96,4 @@ def get_xml_documents(dir_name, file_name):
 
 
 def get_corpus_files_names(dir_name):
-    all_files_in_dir = os.listdir(path=dir_name)
-    corpus_files_in_dir = [file for file in all_files_in_dir if is_corpus_file(file)]
-    return corpus_files_in_dir
-
-
-def is_corpus_file(file_name):
-    pattern = 'cf\d\d.xml'
-    return re.match(pattern, file_name)
-
+    return os.listdir(path=dir_name)

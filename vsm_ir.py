@@ -7,6 +7,7 @@ import xml.etree.ElementTree as ET
 inverted_index_file_name = "vsm_inverted_index.json"
 ranked_query_file_name = "ranked_query_docs.txt"
 
+
 def main():
     args = sys.argv
     if len(args) == 1:
@@ -25,9 +26,11 @@ def main():
         if args[2] not in ["bm25", "tfidf"]:
             print("ERROR - unknown ranking")
             return
-        k = 1.5
-        b = 0.75
-        return query(args[2], args[3], args[4], k, b)
+        k = 2
+        b = 0.9
+        min_score = 11 if args[2] == "bm25" else 0.3
+        min_number_of_results = 10
+        return query(args[2], args[3], args[4], k, b, min_number_of_results, min_score)
     else:
         print("ERROR - invalid command.")
         return
@@ -46,25 +49,43 @@ def load_inverted_index(inverted_index_file):
     return data["inverted_index"], data["vector_lengths"], data["document_lengths"]
 
 
-def query(ranking, index_path, question, k, b):
+def query(ranking, index_path, question, k, b, min_number_of_results, min_score):
     H, vector_lengths, document_lengths = load_inverted_index(index_path)
     if ranking == "tfidf":
-        results = get_query_results_tfidf(H, vector_lengths, question)
-        return save_results(results)
+        all_results = get_query_results_tfidf(H, vector_lengths, question)
+        partial_results = get_partial_results(all_results, min_number_of_results, min_score)
+        save_results(partial_results)
+        return partial_results
     elif ranking == "bm25":
-        results = get_query_results_bm25(H, document_lengths, question, k, b)
-        return save_results(results)
+        all_results = get_query_results_bm25(H, document_lengths, question, k, b)
+        partial_results = get_partial_results(all_results, min_number_of_results, min_score)
+        save_results(partial_results)
+        return partial_results
+
+
+def get_partial_results(results, min_number_of_results, min_score):
+    partial_results = []
+    for idx, result in enumerate(results):
+        if idx < min_number_of_results:
+            partial_results.append(int(result))
+            continue
+        if results[result] >= min_score:
+            partial_results.append(int(result))
+            continue
+        break
+    return partial_results
 
 
 def save_results(results):
-    with open(ranked_query_file_name,"w"):
+    """
+    the function saves the result file numbers from the corpus line by line to ranked_query_file_name
+    :param results: slice of result numbers
+    """
+    with open(ranked_query_file_name, "w"):     # create new file
         1 == 1
-    res = []
-    with open(ranked_query_file_name,"a") as f:
+    with open(ranked_query_file_name, "a") as f:    # write results
         for result in results:
-            res.append(int(result))
-            f.write(f"{int(result)}\n")
-    return res
+            f.write(f"{result}\n")
 
 
 def get_query_results_bm25(H, document_lengths, question, k, b):
